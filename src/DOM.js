@@ -6,66 +6,82 @@ Manager has a render function that will call "latex" .. so we could potentially 
 
 document, node, image, etc.  node is kinda like <div> in html
 
-Pre/post are also mimicing how environments work in laTex, so we can copy an node, and just change the "nodes" property to have the pre/post apply to our data
+before/after are also mimicing how environments work in laTex, so we can copy an node, and just change the "nodes" property to have the before/after apply to our data
 
 let's say I create a quote box with header and footer (like environments in latex)
 
-quotebox = new(Manager);
-quotebox.write("<hr/>","html","pre")
-quotebox.write("<hr/>","html","post");
+So, for HTML equivalency:
 
-so later, I create a class called "quotebox"
+boldText = Manager.class("bold-text");
+boldText.before("<b>");
+boldText.after("</b>");
 
-and I have an node
-somequote.class.push ("quotebox");
-somequote.write("'Blah blah, said Mike'");
+someText = Manager.node();
+someText.classes.push("bold-text"); <-- note the classname
+or
+someText = Manager.node({class:"bold-text"});
 
-So, when render is called, it applies classes/styles to pre, .. it goes and finds all the PRE content
-renders:
-1. somequote style PRE
-2. somequote classes pre > quotebox style pre
-3. somequote style applied to nodes
-4. somequote classes nodes > quotebox nodes
-5. somequote nodes
-then... POST... I guess those have to be in APPLIED reverse order, but individual content of the POST section left in the same order
+someText.write("Here's some text that's bolded");
+
+when it renders, we get the <b>, then someText.text .. then </b>
+
+Instead of having "styles" applied last like css has, you just add a class to the list
+
+So, if we want to do styles, we just  create a #[id] class and style.
+
+Render "before" from all objects in .classes[];
+Render content from classes
+Render content from self
+Do "after" in reverse order as above
+
+Classes are held by the DOM Manager, so we add them there and then just add the
+class names that map to the DOM's class lists.
+
+So the "skin" of style can be changed with a different DOM.
 
 cool. I think that makes me happy.
 */
 
-
-function new(Manager){
+function node(Manager){
    var node = {
        Manager:Manager, /*the manager that tracks styles and context and junk.*/
+       _id:
        id:null,
        type:"node" /*used to build a DOM path.. so "page table.myclass" table is a DOMtype myclass would be in classes[]*/,
-       styles:[],  /*like css styles.. font-weight:bold */
        classes:[], /*like css classes  ...  monster-block */
-       pre: null, /*an array of nodes rendered before nodes*/
+       _before: null, /*an array of nodes rendered before nodes*/
        content: [], /*each command just keeps adding*/
-       post: null,/*an array of nodes rendered after nodes*/
+       _after: null,/*an array of nodes rendered after nodes*/
+       onRender:null,
        render:()=>{
-         Manager.render(this.preStyles(this.preClasses(this.pre)));
-         Manager.render(this.applyStyles(this.applyClasses(this.content)));
-         Manager.render(this.postStyles(this.postClasses(this.post)));
+         return [].concat(
+            this.Manager.render(this.Manager.beforeClasses(this)), /*reads before and applies*/
+            this.Manager.render(this.Manager.applyClasses(this)), /*processes all classes "body" segments then content, and on render*/
+            this.Manager.render(this.Manager.afterClasses(this)) /*reads after and applies*/
+          );
        },
-       before:(data, type="text")=>{
-
+       before:(data)=>{
+         if(data){
+           this._before.push(data); //push to end
+         }
+         return this._before;
        },
-       write:(data, type="text")=>{
-
+       write:(data)=>{
+         if(data) this.content.push(data);
+         return this.content;
        },
-       after:(data, type="text")=>{
-
-       }, /*write nodes directly.. not just strings*/
-       /*TODO: async:()=>{}, /*uses lambas to write */
-       search:(selector)=>{
-         return search(this,selector);
+       add:(class=null,renderCallback=null)=>{
+         data = node(Manager);
+         if(class) data.class.concat(class);
+         data.onRender = renderCallback;
+         this.content.push(data);
+         return data;
        },
-       applyStyles:(nodes)=>{
-           return Manager.applyStyles(this,nodes);
-       },
-       applyClasses:(nodes)=>{
-           return Manager.applyClasses(this,nodes);
+       after:(data)=>{
+         if(data){
+           this._after.unshift(data); //push to top; so we process in order.
+         }
+         return this._after;
        },
        destroy:(){
          Manager.delete(node);
@@ -73,19 +89,6 @@ function new(Manager){
    };
    manager.add(node);
    return node;
-}
-
-function search(node,selector){
-  /*search node as if it were a DOM   #=an id,  [DOM].[class] or .[class] for classes, psuedo selectors later*/
-  var foundNodes = [];
-  searchStack(node,node.type,selector.split(" "),function(found,foundPath){
-    foundNodes[foundPath]=found;
-  });
-  return foundNodes;
-}
-
-function searchStack(node,currentPath, selectorStack,callbackFound){
-   //recurse the stack and through child nodes (pop / apply) callback any and all that apply.
 }
 
 /*

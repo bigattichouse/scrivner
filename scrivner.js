@@ -14,4 +14,4 @@ so to use from php, output the JS, have it require this, then it renders when yo
 Honestly, I'd like to see something like the DOM and page elements with a more programmatic class structure
 sort blend latex class/package with trad class inheritence and DOM "decoration"
 
-*/
+*/  

@@ -17,3 +17,18 @@ so.. when we hit the latex Render stage, it calls the element's render() functio
 but this func would be called first which would make a simple \textbf{whatever}
 
 */
+
+function new(){
+    var manager = {
+       add: (node)=>{
+
+       }
+       delete:(selector)=>{
+
+       }
+       find:(selector)=>{
+
+       }
+    };
+    return manager;
+}
